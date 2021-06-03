@@ -1,0 +1,84 @@
+name: storybook
+
+on:
+  push:
+    branches:
+      - develop
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+
+jobs:
+  storybook:
+    runs-on: ubuntu-18.04
+    if: contains(github.ref, 'refs/heads/develop') || (github.event.action != 'closed')
+    steps:
+      - uses: actions/checkout@v2
+      - run: yarn
+      - run: yarn build-storybook
+      - name: dist_target
+        id: dist_target
+        run: |
+          ${{ github.event_name == 'pull_request'}} && TARGET=${{ github.event.pull_request.number }} || TARGET='develop'
+          echo "::set-output name=target::${TARGET}"
+      - name: Deploy storybook
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./storybook-static
+          destination_dir: ${{ steps.dist_target.outputs.target }}
+      - name: add comment storybook url
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v3
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const storybookPath = 'https://kyo-ago.github.io/storybook-test/${{ steps.dist_target.outputs.target }}/'
+            const commentBody =
+            `Visit the Storybook preview URL for this PR (updated for commit ${{ github.event.pull_request.head.sha }}):
+
+            ${storybookPath}
+
+            <sub>(expires when this Pull Request is closed)</sub>
+            `
+
+            // Get the existing comments.
+            const {data: comments} = await github.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.number,
+            })
+            // Find any comment already made by the bot.
+            const botComment = comments.find(comment => comment.user.type === 'Bot' && comment.body.includes(storybookPath))
+            if (botComment) {
+              await github.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: commentBody
+              })
+            } else {
+              await github.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.number,
+                body: commentBody
+              })
+            }
+
+  expires_storybook:
+    runs-on: ubuntu-18.04
+    if: ${{ github.event_name == 'pull_request' && github.event.action == 'closed' }}
+    steps:
+      - name: check expires
+        uses: actions/checkout@v2
+        with:
+          ref: gh-pages
+      - name: expires
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/$GITHUB_REPOSITORY
+          test -d ${{ github.event.pull_request.number }} || exit 0
+          git rm -r ${{ github.event.pull_request.number }}
+          git commit -m "expires"
+          git push
