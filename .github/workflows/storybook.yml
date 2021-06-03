@@ -32,7 +32,7 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const storybookPath = 'https://kyo-ago.github.io/storybook-test/${{ steps.dist_target.outputs.target }}/'
+            const storybookPath = 'https://kyo-ago.github.io/storybook-test/${{ steps.dist_target.outputs.target }}/index.html'
             const commentBody =
             `Visit the Storybook preview URL for this PR (updated for commit ${{ github.event.pull_request.head.sha }}):
 
