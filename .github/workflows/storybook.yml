@@ -3,14 +3,14 @@ name: storybook
 on:
   push:
     branches:
-      - develop
+      - main
   pull_request:
     types: [opened, synchronize, reopened, closed]
 
 jobs:
   storybook:
     runs-on: ubuntu-18.04
-    if: contains(github.ref, 'refs/heads/develop') || (github.event.action != 'closed')
+    if: contains(github.ref, 'refs/heads/main') || (github.event.action != 'closed')
     steps:
       - uses: actions/checkout@v2
       - run: yarn
@@ -18,7 +18,7 @@ jobs:
       - name: dist_target
         id: dist_target
         run: |
-          ${{ github.event_name == 'pull_request'}} && TARGET=${{ github.event.pull_request.number }} || TARGET='develop'
+          ${{ github.event_name == 'pull_request'}} && TARGET=${{ github.event.pull_request.number }} || TARGET='main'
           echo "::set-output name=target::${TARGET}"
       - name: Deploy storybook
         uses: peaceiris/actions-gh-pages@v3
